@@ -2,7 +2,6 @@ import requests
 import uuid
 import json
 import os
-from multiprocessing import Process, Pipe
 import threading
 
 
@@ -28,12 +27,14 @@ class RickandMortyGetObjects:
     def __init__(self, endpoint):
         self.endpoint = endpoint
         self.data = []
+        self.lock = threading.Lock()
 
     def get_data(self):
         print(f"Retrieving data for endpoint: {self.endpoint}")
         data = []
         current_page = 1
         is_next = True
+        # self.lock.acquire()
 
         def get_one_page():
             nonlocal current_page
@@ -48,11 +49,15 @@ class RickandMortyGetObjects:
                 raise Exception("Connection error with api")
 
         while is_next:
+            print(f"here {self.endpoint}")
             is_next = get_one_page()
 
         self.data = data
+        print(f"Done with {self.endpoint}")
+        self.lock.release()
 
     def create_json_files(self):
+        self.lock.acquire()
         if not os.path.exists(self.endpoint):
             os.makedirs(self.endpoint)
         for data_entry in self.data:
@@ -61,6 +66,7 @@ class RickandMortyGetObjects:
                          "RawData": data_entry}
             background = BackgroundWrite(json_data, f"{self.endpoint}/{data_entry['id']}.json")
             background.start()
+        self.lock.release()
 
 
 def get_all_data_for_all_objects():
@@ -75,12 +81,8 @@ def get_all_data_for_all_objects():
     episode = RickandMortyGetObjects("episode")
     t_3 = threading.Thread(target=episode.get_data)
     t_3.start()
-
-    t_1.join()
-    t_2.join()
-    t_3.join()
-
     print("Done with data retrieval: skipping to writing data to json files.")
+
     t_1_1 = threading.Thread(target=character.create_json_files)
     t_1_1.start()
     t_2_1 = threading.Thread(target=location.create_json_files)
@@ -88,6 +90,9 @@ def get_all_data_for_all_objects():
     t_3_1 = threading.Thread(target=episode.create_json_files)
     t_3_1.start()
 
+    t_1.join()
+    t_2.join()
+    t_3.join()
     t_1_1.join()
     t_2_1.join()
     t_3_1.join()
@@ -95,3 +100,4 @@ def get_all_data_for_all_objects():
 
 if __name__ == "__main__":
     get_all_data_for_all_objects()
+
