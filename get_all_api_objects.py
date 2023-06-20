@@ -92,5 +92,6 @@ def get_all_data_for_all_objects():
     t_2_1.join()
     t_3_1.join()
 
+
 if __name__ == "__main__":
     get_all_data_for_all_objects()
